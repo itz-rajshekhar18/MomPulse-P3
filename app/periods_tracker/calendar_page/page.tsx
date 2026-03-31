@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { auth } from "../../login/login";
 import { onAuthStateChanged } from "firebase/auth";
-import { enableCalendar, isCalendarEnabled, getPeriodCycleData, getPeriodDatesArray, saveDailyLog, getDailyLog, formatDateForLog } from "../../lib/firestore";
+import { enableCalendar, isCalendarEnabled, getPeriodCycleData, getPeriodDatesArray, saveDailyLog, getDailyLog, formatDateForLog, getUserData } from "../../lib/firestore";
 import { predictNextPeriod, formatDate, daysUntil, getCurrentCycleDay, type CyclePrediction } from "../../lib/cyclePrediction";
 import { useRouter } from "next/navigation";
 
@@ -19,6 +19,7 @@ export default function CalendarPage() {
   const [showEnableForm, setShowEnableForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState('User');
   const [prediction, setPrediction] = useState<CyclePrediction | null>(null);
   const [cycleDay, setCycleDay] = useState(1);
   const [formData, setFormData] = useState({
@@ -119,6 +120,12 @@ export default function CalendarPage() {
       }
 
       setUserId(user.uid);
+      
+      // Get user data
+      const userData = await getUserData(user.uid);
+      if (userData.success && userData.data) {
+        setUserName(userData.data.fullName);
+      }
       
       // Check if calendar is enabled
       const enabled = await isCalendarEnabled(user.uid);

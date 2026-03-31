@@ -1,0 +1,81 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Users collection rules
+    match /users/{userId} {
+      // Allow users to read their own data
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow users to create their own document during registration
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow users to update their own data
+      allow update: if request.auth != null && request.auth.uid == userId;
+      
+      // Prevent deletion of user documents
+      allow delete: if false;
+      
+      // Calendar data subcollection
+      match /calendar/{calendarId} {
+        // Allow users to read/write their own calendar data
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Period cycles subcollection
+      match /periodCycles/{cycleId} {
+        // Allow users to read/write their own period cycle data
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Daily logs subcollection (for vitals, notes, symptoms, mood)
+      match /dailyLogs/{logId} {
+        // Allow users to read/write their own daily logs
+        // logId format: YYYY-MM-DD (e.g., "2026-03-22")
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Symptoms subcollection
+      match /symptoms/{symptomId} {
+        // Allow users to read/write their own symptoms
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Vitals subcollection
+      match /vitals/{vitalId} {
+        // Allow users to read/write their own vitals
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Notes subcollection
+      match /notes/{noteId} {
+        // Allow users to read/write their own notes
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // Mood tracking subcollection
+      match /moods/{moodId} {
+        // Allow users to read/write their own mood data
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // AI Conversations subcollection
+      match /conversations/{conversationId} {
+        // Allow users to read/write their own conversations
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        
+        // Messages subcollection within conversations
+        match /messages/{messageId} {
+          // Allow users to read/write their own messages
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+        }
+      }
+    }
+    
+    // Deny all other access by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

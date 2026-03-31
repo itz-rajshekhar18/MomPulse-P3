@@ -13,6 +13,9 @@ import {
   getConversations,
   saveMessage,
   getMessages,
+  getDailyLog,
+  formatDateForLog,
+  deleteConversation,
   type Conversation as FirestoreConversation,
   type ChatMessage
 } from "../../lib/firestore";
@@ -48,6 +51,14 @@ export default function AIAssistantPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Real user data from Firebase
+  const [todayMood, setTodayMood] = useState<string>('');
+  const [todaySymptoms, setTodaySymptoms] = useState<string[]>([]);
+  const [todayNotes, setTodayNotes] = useState<string>('');
+  const [todayVitals, setTodayVitals] = useState<any>(null);
+  const [nextPeriodDate, setNextPeriodDate] = useState<Date | null>(null);
+  const [daysUntilPeriod, setDaysUntilPeriod] = useState<number>(0);
 
   // Helper function to format timestamp
   const formatTimestamp = (timestamp: any): string => {
@@ -113,6 +124,15 @@ export default function AIAssistantPage() {
         const currentDay = getCurrentCycleDay(startDates[startDates.length - 1]);
         setCycleDay(currentDay);
         
+        // Set next period date and days until
+        setNextPeriodDate(predictions.nextPeriod);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const nextPeriod = new Date(predictions.nextPeriod);
+        nextPeriod.setHours(0, 0, 0, 0);
+        const daysUntil = Math.ceil((nextPeriod.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        setDaysUntilPeriod(daysUntil);
+        
         // Determine cycle phase
         if (currentDay <= 5) {
           setCyclePhase('Menstrual');
@@ -123,6 +143,17 @@ export default function AIAssistantPage() {
         } else {
           setCyclePhase('Luteal');
         }
+      }
+      
+      // Load today's daily log data
+      const today = new Date();
+      const todayStr = formatDateForLog(today);
+      const dailyLog = await getDailyLog(user.uid, todayStr);
+      if (dailyLog.success && dailyLog.data) {
+        setTodayMood(dailyLog.data.mood || '');
+        setTodaySymptoms(dailyLog.data.symptoms || []);
+        setTodayNotes(dailyLog.data.notes || '');
+        setTodayVitals(dailyLog.data.vitals || null);
       }
       
       // Load conversations
@@ -203,6 +234,38 @@ export default function AIAssistantPage() {
     }
   };
 
+  const handleDeleteConversation = async (conversationId: string) => {
+    if (!userId) return;
+    
+    if (!confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) {
+      return;
+    }
+    
+    const result = await deleteConversation(userId, conversationId);
+    
+    if (result.success) {
+      // Reload conversations
+      const updatedConvs = await getConversations(userId);
+      if (updatedConvs.success) {
+        setConversations(updatedConvs.conversations.map(conv => ({
+          id: conv.id,
+          title: conv.title,
+          preview: conv.preview,
+          timestamp: formatTimestamp(conv.updatedAt),
+          badge: conv.badge
+        })));
+        
+        // If deleted conversation was selected, clear selection
+        if (selectedConversation === conversationId) {
+          setSelectedConversation(null);
+          setMessages([]);
+        }
+      }
+    } else {
+      alert('Failed to delete conversation');
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || !userId) return;
 
@@ -249,7 +312,7 @@ export default function AIAssistantPage() {
     setIsTyping(true);
 
     try {
-      // Call Gemini API
+      // Call Gemini API with full user context
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -258,7 +321,14 @@ export default function AIAssistantPage() {
         body: JSON.stringify({
           message: inputMessage,
           cycleDay,
-          cyclePhase
+          cyclePhase,
+          userName,
+          todayMood,
+          todaySymptoms,
+          todayNotes,
+          daysUntilPeriod,
+          nextPeriodDate: nextPeriodDate?.toDateString(),
+          vitals: todayVitals
         }),
       });
 
@@ -400,35 +470,40 @@ export default function AIAssistantPage() {
             <div className="p-2">
               <div className="text-xs font-semibold text-gray-500 px-3 py-2">Recent</div>
               {conversations.map((conv) => (
-                <button
+                <div
                   key={conv.id}
-                  onClick={() => setSelectedConversation(conv.id)}
-                  className={`w-full text-left px-3 py-3 rounded-lg hover:bg-gray-50 transition-colors mb-1 ${
+                  className={`relative group px-3 py-3 rounded-lg hover:bg-gray-50 transition-colors mb-1 ${
                     selectedConversation === conv.id ? 'bg-purple-50' : ''
                   }`}
                 >
-                  <div className="flex items-start justify-between mb-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-semibold text-gray-900">{conv.title}</span>
-                      {conv.badge && (
-                        <span className="text-xs bg-[#BFA2DB] text-white px-2 py-0.5 rounded-full">
-                          {conv.badge}
-                        </span>
-                      )}
+                  <button
+                    onClick={() => setSelectedConversation(conv.id)}
+                    className="w-full text-left"
+                  >
+                    <div className="flex items-start justify-between mb-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-semibold text-gray-900">{conv.title}</span>
+                        {conv.badge && (
+                          <span className="text-xs bg-[#BFA2DB] text-white px-2 py-0.5 rounded-full">
+                            {conv.badge}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <span 
-                      className="text-gray-400 hover:text-gray-600 cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        // Handle menu click
-                      }}
-                    >
-                      ⋮
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-600 truncate">{conv.preview}</p>
-                  <span className="text-xs text-gray-400 mt-1 block">{conv.timestamp}</span>
-                </button>
+                    <p className="text-xs text-gray-600 truncate">{conv.preview}</p>
+                    <span className="text-xs text-gray-400 mt-1 block">{conv.timestamp}</span>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteConversation(conv.id);
+                    }}
+                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 transition-opacity"
+                    title="Delete conversation"
+                  >
+                    🗑️
+                  </button>
+                </div>
               ))}
             </div>
           </div>
@@ -652,27 +727,59 @@ export default function AIAssistantPage() {
           <div className="p-6 border-b border-gray-200">
             <h3 className="text-sm font-bold text-gray-900 mb-4">At a Glance</h3>
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-red-50 rounded-lg p-3 text-center">
-                <div className="text-2xl mb-1">🩸</div>
-                <div className="text-xs font-semibold text-gray-700">Light</div>
-                <div className="text-xs text-gray-500">Flow</div>
-              </div>
-              <div className="bg-blue-50 rounded-lg p-3 text-center">
-                <div className="text-2xl mb-1">😌</div>
-                <div className="text-xs font-semibold text-gray-700">Calm</div>
+              <div className="bg-purple-50 rounded-lg p-3 text-center">
+                <div className="text-2xl mb-1">
+                  {todayMood || '😊'}
+                </div>
+                <div className="text-xs font-semibold text-gray-700">
+                  {todayMood ? 'Today' : 'No data'}
+                </div>
                 <div className="text-xs text-gray-500">Mood</div>
               </div>
-              <div className="bg-green-50 rounded-lg p-3 text-center">
-                <div className="text-2xl mb-1">💚</div>
-                <div className="text-xs font-semibold text-gray-700">High</div>
-                <div className="text-xs text-gray-500">Energy</div>
+              <div className="bg-pink-50 rounded-lg p-3 text-center">
+                <div className="text-2xl mb-1">🩸</div>
+                <div className="text-xs font-semibold text-gray-700">
+                  {daysUntilPeriod > 0 ? `${daysUntilPeriod} days` : 'Today'}
+                </div>
+                <div className="text-xs text-gray-500">Next Period</div>
               </div>
-              <div className="bg-yellow-50 rounded-lg p-3 text-center">
-                <div className="text-2xl mb-1">💤</div>
-                <div className="text-xs font-semibold text-gray-700">6</div>
-                <div className="text-xs text-gray-500">Hours Sleep</div>
+              <div className="bg-blue-50 rounded-lg p-3 text-center">
+                <div className="text-2xl mb-1">🤕</div>
+                <div className="text-xs font-semibold text-gray-700">
+                  {todaySymptoms.length > 0 ? todaySymptoms.length : 'None'}
+                </div>
+                <div className="text-xs text-gray-500">Symptoms</div>
+              </div>
+              <div className="bg-green-50 rounded-lg p-3 text-center">
+                <div className="text-2xl mb-1">💧</div>
+                <div className="text-xs font-semibold text-gray-700">
+                  {todayVitals?.hydration ? `${todayVitals.hydration}L` : 'No data'}
+                </div>
+                <div className="text-xs text-gray-500">Hydration</div>
               </div>
             </div>
+            
+            {/* Today's Symptoms List */}
+            {todaySymptoms.length > 0 && (
+              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                <div className="text-xs font-semibold text-gray-700 mb-2">Today's Symptoms:</div>
+                <div className="flex flex-wrap gap-2">
+                  {todaySymptoms.map((symptom, index) => (
+                    <span key={index} className="text-xs px-2 py-1 bg-white rounded-full text-gray-600">
+                      {symptom}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Today's Notes */}
+            {todayNotes && (
+              <div className="mt-4 p-3 bg-yellow-50 rounded-lg">
+                <div className="text-xs font-semibold text-gray-700 mb-1">Today's Note:</div>
+                <div className="text-xs text-gray-600">{todayNotes}</div>
+              </div>
+            )}
           </div>
 
           {/* Explore Topics */}

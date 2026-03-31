@@ -4,13 +4,14 @@ import { useState, useEffect } from "react";
 import { auth } from "../../../login/login";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
+import { useDarkMode } from "../../../contexts/DarkModeContext";
 
 export default function AppSettingsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { darkMode, toggleDarkMode } = useDarkMode();
   
-  const [darkMode, setDarkMode] = useState(false);
   const [language, setLanguage] = useState('en');
   const [units, setUnits] = useState('metric');
   const [notifications, setNotifications] = useState(true);
@@ -72,7 +73,7 @@ export default function AppSettingsPage() {
               <p className="text-xs text-gray-600">Switch to dark theme</p>
             </div>
             <button
-              onClick={() => setDarkMode(!darkMode)}
+              onClick={toggleDarkMode}
               className={`relative w-14 h-8 rounded-full transition-colors ${
                 darkMode ? 'bg-[#BFA2DB]' : 'bg-gray-300'
               }`}

@@ -1,18 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const GEMINI_API_KEY = 'AIzaSyAalBuXV6RwznqCc2QcvRD-akanN6ck9h4';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, cycleDay, cyclePhase } = await request.json();
+    const { 
+      message, 
+      cycleDay, 
+      cyclePhase, 
+      userName, 
+      todayMood, 
+      todaySymptoms, 
+      todayNotes, 
+      daysUntilPeriod, 
+      nextPeriodDate,
+      vitals 
+    } = await request.json();
+
+    // Build symptoms string
+    const symptomsStr = todaySymptoms && todaySymptoms.length > 0 
+      ? todaySymptoms.join(', ') 
+      : 'None logged';
+
+    // Build vitals string
+    const vitalsStr = vitals 
+      ? `Heart Rate: ${vitals.heartRate || 'N/A'} bpm, Hydration: ${vitals.hydration || 'N/A'}L, Temperature: ${vitals.temperature || 'N/A'}°F, Weight: ${vitals.weight || 'N/A'} lbs`
+      : 'No vitals logged';
 
     // Create context-aware prompt
     const prompt = `You are MomPulse AI, a compassionate and knowledgeable health companion for women. You specialize in menstrual health, pregnancy, and women's wellness.
 
 Current User Context:
+- User Name: ${userName || 'User'}
 - Cycle Day: ${cycleDay || 'Unknown'}
 - Cycle Phase: ${cyclePhase || 'Unknown'}
+- Days Until Next Period: ${daysUntilPeriod || 'Unknown'}
+- Next Period Date: ${nextPeriodDate || 'Unknown'}
+- Today's Mood: ${todayMood || 'Not logged'}
+- Today's Symptoms: ${symptomsStr}
+- Today's Notes: ${todayNotes || 'None'}
+- Today's Vitals: ${vitalsStr}
 
 Guidelines:
 - Be warm, supportive, and empathetic
@@ -21,10 +49,12 @@ Guidelines:
 - Keep responses concise but informative (2-3 paragraphs max)
 - Always encourage users to consult healthcare providers for serious concerns
 - Focus on menstrual health, fertility, pregnancy, and women's wellness topics
+- Reference the user's current data when relevant (symptoms, mood, cycle phase, etc.)
+- Provide personalized advice based on their cycle phase and symptoms
 
 User Message: ${message}
 
-Please provide a helpful, caring response:`;
+Please provide a helpful, caring response that takes into account their current health data:`;
 
     const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
       method: 'POST',

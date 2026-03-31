@@ -2,13 +2,13 @@ import { initializeApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAjI6DcQ0COTF0WovnVI90YJe8iLOvEVhQ",
-  authDomain: "mompulse-prototype.firebaseapp.com",
-  projectId: "mompulse-prototype",
-  storageBucket: "mompulse-prototype.firebasestorage.app",
-  messagingSenderId: "901251625497",
-  appId: "1:901251625497:web:8f7623f9a3a7b88db1b088",
-  measurementId: "G-P7MP3PQ8GX"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
 // Initialize Firebase

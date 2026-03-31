@@ -178,6 +178,31 @@ export default function AIAssistantPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const handleNewConversation = async () => {
+    if (!userId) return;
+    
+    const newTitle = `New Chat ${new Date().toLocaleDateString()}`;
+    const result = await createConversation(userId, newTitle, 'Start a new conversation...');
+    
+    if (result.success && result.conversationId) {
+      // Reload conversations
+      const updatedConvs = await getConversations(userId);
+      if (updatedConvs.success) {
+        setConversations(updatedConvs.conversations.map(conv => ({
+          id: conv.id,
+          title: conv.title,
+          preview: conv.preview,
+          timestamp: 'Just now',
+          badge: conv.badge
+        })));
+        
+        // Select the new conversation
+        setSelectedConversation(result.conversationId);
+        setMessages([]);
+      }
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || !userId) return;
 
@@ -354,7 +379,10 @@ export default function AIAssistantPage() {
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-900">Conversations</h2>
-              <button className="w-8 h-8 bg-[#BFA2DB] rounded-lg flex items-center justify-center text-white hover:bg-[#A88BC4]">
+              <button 
+                onClick={handleNewConversation}
+                className="w-8 h-8 bg-[#BFA2DB] rounded-lg flex items-center justify-center text-white hover:bg-[#A88BC4]"
+              >
                 +
               </button>
             </div>

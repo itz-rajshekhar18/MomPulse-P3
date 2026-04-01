@@ -25,6 +25,8 @@ export interface UserData {
   createdAt: any;
   updatedAt: any;
   calendarEnabled?: boolean;
+  onboardingCompleted?: boolean;
+  pregnancyStage?: 'planning' | 'pregnant' | 'postpartum';
 }
 
 export interface PeriodCycleData {

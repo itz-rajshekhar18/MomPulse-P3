@@ -9,10 +9,24 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
       
       // Allow users to create their own document during registration
-      allow create: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && 
+                      request.auth.uid == userId &&
+                      request.resource.data.uid == userId &&
+                      request.resource.data.email is string &&
+                      request.resource.data.fullName is string &&
+                      request.resource.data.journey in ['period', 'pregnancy'];
       
-      // Allow users to update their own data
-      allow update: if request.auth != null && request.auth.uid == userId;
+      // Allow users to update their own data with validation
+      allow update: if request.auth != null && 
+                      request.auth.uid == userId &&
+                      // Validate journey field if present
+                      (!('journey' in request.resource.data) || request.resource.data.journey in ['period', 'pregnancy']) &&
+                      // Validate onboardingCompleted if present
+                      (!('onboardingCompleted' in request.resource.data) || request.resource.data.onboardingCompleted is bool) &&
+                      // Validate pregnancyStage if present (only for pregnancy journey)
+                      (!('pregnancyStage' in request.resource.data) || 
+                        (request.resource.data.journey == 'pregnancy' && 
+                         request.resource.data.pregnancyStage in ['planning', 'pregnant', 'postpartum']));
       
       // Prevent deletion of user documents
       allow delete: if false;

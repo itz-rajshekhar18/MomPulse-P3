@@ -21,11 +21,17 @@ export default function LoginPage() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // User is already logged in, redirect to their tracker
+        // User is already logged in, check if they need onboarding
         try {
           const userData = await getUserData(user.uid);
           
           if (userData.success && userData.data) {
+            // Check if user has completed onboarding
+            if (!userData.data.journey || !userData.data.onboardingCompleted) {
+              router.push('/onboarding');
+              return;
+            }
+            
             if (userData.data.journey === 'period') {
               router.push('/periods_tracker');
             } else if (userData.data.journey === 'pregnancy') {
@@ -72,14 +78,20 @@ export default function LoginPage() {
         if (userData.success && userData.data) {
           console.log('Login successful:', userData.data);
           
+          // Check if user has completed onboarding
+          if (!userData.data.journey || !userData.data.onboardingCompleted) {
+            router.push('/onboarding');
+            return;
+          }
+          
           // Redirect based on user's journey
           if (userData.data.journey === 'period') {
             router.push('/periods_tracker');
           } else if (userData.data.journey === 'pregnancy') {
             router.push('/pregnancy_tracker');
           } else {
-            // Fallback to a default page
-            router.push('/dashboard');
+            // Fallback to onboarding
+            router.push('/onboarding');
           }
         } else {
           setError('Login successful but failed to load profile data');

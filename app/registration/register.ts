@@ -1,19 +1,5 @@
-import { initializeApp } from "firebase/app";
 import { getAuth, createUserWithEmailAndPassword, updateProfile, sendEmailVerification } from "firebase/auth";
-
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+import { auth } from "../login/login"; // Reuse the auth instance from login
 
 // Register with email and password
 export const registerWithEmail = async (email: string, password: string, displayName?: string) => {
@@ -27,15 +13,20 @@ export const registerWithEmail = async (email: string, password: string, display
       });
     }
     
-    // Send email verification
-    await sendEmailVerification(userCredential.user);
+    // Send email verification (optional - can be commented out if causing issues)
+    try {
+      await sendEmailVerification(userCredential.user);
+    } catch (emailError) {
+      console.log('Email verification failed, but registration succeeded');
+    }
     
     return {
       success: true,
       user: userCredential.user,
-      message: "Registration successful. Please check your email for verification."
+      message: "Registration successful"
     };
   } catch (error: any) {
+    console.error('Registration error:', error);
     return {
       success: false,
       error: error.code,
@@ -63,5 +54,3 @@ const getErrorMessage = (errorCode: string): string => {
       return "Registration failed. Please try again";
   }
 };
-
-export { auth };
